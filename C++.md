@@ -91,7 +91,7 @@ import numpy as np
 def IOU(bbox, gts):
     '''
     Args:
-        bbox: predictions (N, 4)
+        bbox: predictions (N, 4)-> (x_left_bottom, y_left_bootom, x_right_bootom, y_right_bootom)
         gts: ground truth (M, 4)
     '''
     left_bottom = np.max(bbox[:, np.newaxis, :2], gts[np.newaxis, :, :2])
@@ -106,7 +106,60 @@ def IOU(bbox, gts):
     return iou
 ```
 ## Rotated IOU
+```
+import cv2
+def rotated_iou(predictions, gts):
+    '''
+    Args:
+        predictions: (N, 5) -> (x_left_bottom, y_left_bootom, x_right_bootom, y_right_bootom, rotation_angle)
+        gts: (M, 5)
+    '''
+    prediction_areas = np.prod(predictions[:, 2:4] - predictions[:, :2], axis=1)
+    gt_areas = np.prod(gts[:, 2:4] - gts[:, :2], axis=1)
+    ious = []
+    for i, box1 in enumerate(predictions):
+        tmp_ious = []
+        rectangle_1 = ((box1[0], box1[1]), (box1[2], box1[3]), box1[4])
+        for j, box2 in enumerate(gts):
+            rectangle_2 = ((box2[0], box2[1]), (box2[2], box2[3]), box2[4])
+            
+            intersection_pts = cv2.rotatedRectangleIntersection(rectangle_1, rectangle_2)[1]
+            if intersection_pts is not None:
+                order_pts = cv2.convexHull(intersection_pts, returnPoints=True)
+
+                intersection_area = cv2.contourArea(order_pts)
+                iou = intersection_area / (prediction_areas[i] + gt_areas[j] - intersection_area)
+                tmp_ious.append(iou)
+            else:
+                tmp_ious.append(0.0)
+        ious.append(tmp_ious)
+    return np.array(ious, dtype=np.float32)
+```
 ## NMS
+```
+import numpy as np
+def NMS(predictions, scores, threshold):
+    '''
+    Args:
+        predictions: (N,4) -> (x_left_bottom, y_left_bootom, x_right_bootom, y_right_bootom)
+        scores: (N,)
+        threshold: float32
+    '''
+    prediction_areas = np.prod(predictions[:, 2:] - predictions[:, :2], axis=1)
+    order = scores.argsort()[::-1]
+    res = []
+    while order.size > 0:
+        i = order[0]
+        res.append(i)
+        left_bottom = np.max(predictions[i][:2], predictions[order[1:], :2])
+        right_top = np.min(predictions[i][2:], predictions[order[1:], 2:])
+        width_length = np.max(0, right_top - left_bottom)
+        overlaps = np.prod(width_length, axis=1)
+        ious = overlaps / (prediction_areas[i] + prediction_areas[order[1:]] - overlaps)
+        inds = np.where(ious < threshold)[0]
+        order = order[inds + 1]
+    return res
+```
 ## Label Assignment of SSD
 # Git
 ## 开发场景
