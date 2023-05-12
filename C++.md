@@ -85,6 +85,60 @@ X->Y 为旋转角度的正方向
 
 # 检测相关代码
 ## IOU
+### NUMPY 版本
+```
+import numpy as np
+def IOU(bbox, gts):
+    '''
+    Args:
+        bbox: predictions (N, 4)
+        gts: ground truth (M, 4)
+    '''
+    left_bottom = np.max(bbox[:, np.newaxis, :2], gts[np.newaxis, :, :2])
+    right_top = np.min(bbox[:, np.newaxis, 2:], gts[np.newaxis,:, 2:])
+    width_length = np.max(0, right_top - left_bottom)
+    intersection = width_length[:, :, 1] * width_length[:, :, 0]
+
+    area_bbox = (bbox[:, 2] - bbox[:, 0]) * (bbox[:, 3] - bbox[:, 1])
+    area_gt = (gts[:, 2] - gts[:, 0]) * (gts[:, 3] - bbox[:, 0])
+    
+    iou = intersection / (area_bbox[:, np.newaxis, :] + area_gt[np.newaxis, :, :] - intersection)
+    return iou
+```
 ## Rotated IOU
 ## NMS
 ## Label Assignment of SSD
+# Git
+## 开发场景
+1. 初始化并和远程分支创建链接
+  ```
+  git init
+  git remote add origin https://github.com/...
+  git checkout -b master origin/master
+  // 或者直接 clone
+  git clone https://github.com/...
+  ```
+2. 拉取 feature 分支
+  ```
+  git checkout localFeature origin/remoteFeature
+  ```
+3. 在自己的本地 feature 分支上进行开发
+  ```
+  git add .
+  git commit -m "new_message"
+  ```
+4.  push 到远程 feature 分支上
+
+5. 在远程 feature 分支上执行 git rebase 合并到远程 master 分支上
+## 常用命令
+- git branch -a : 查看所有分支
+- git branch -r : 查看所有远程分支
+- git log  查看提交记录
+- git reflog  可查看修改记录，包括回退记录
+- git reset --hard {commit id} 回退版本
+- git stash 未被提交的代码放到暂存区
+- git stash pop 还原并清除最近一次的暂存记录
+- git remote -v 显示所有远程仓库
+- git remote add url 添加一个远程仓库
+- git remote rm name 删除远程仓库
+- git commit --amend -m "new_message" 重命名最新一次的 commit 记录
