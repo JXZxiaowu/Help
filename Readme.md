@@ -161,6 +161,97 @@ def NMS(predictions, scores, threshold):
     return res
 ```
 ## Label Assignment of SSD
+## points 2 voxel
+```
+def _points_to_voxel(
+        points,
+        voxel_size,
+        coors_range,
+        num_points_pre_voxel,
+        coor_to_voxelidx,
+        voxels,
+        coors,
+        max_points,
+        max_voxels,
+        nsweeps = -1,
+):
+    N = points.shape[0]
+    ndim = 3
+    grid_size = (coors_range[3:] - coors_range[:3]) / voxel_size
+    grid_size = np.round(grid_size).astype(np.int32)
+    coor = np.zeros(shape=(4,), dtype=np.int32)
+    voxel_num = 0
+    for i in range(N):
+        failed = False
+        for j in range(ndim):
+            c = np.floor(points[i, j] - coors_range[j] / voxel_size[j])
+            if c < 0 or c > grid_size[j]:
+                failed = True
+                break
+            coor[ndim - j -1] = c
+        coor[3] = int(points[i, -1])        # sweep idx
+        if failed:
+            continue
+        voxelidx = coor_to_voxelidx[coor[0], coor[1], coor[2], coor[3]]
+        if voxelidx == -1:
+            voxelidx = voxel_num
+            if voxel_num > max_voxels:
+                continue
+            voxel_num += 1
+            coor_to_voxelidx[coor[0], coor[1], coor[2], coor[3]] = voxelidx
+            coors[voxelidx] = coor
+        num = num_points_pre_voxel[voxelidx]
+        if num < max_points:
+            voxels[voxelidx, num] = points[i]
+            num += 1
+    return voxel_num
+
+def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, max_voxels = 120000):
+    '''
+    Args:
+        points: [N, ndims] float tensor. points[:, :3] contain xyz and
+            points[:, 3:] contain other information
+        voxel_size: [3] list/tuple or array, float. xyz, indicate voxel size
+        coors_range: [6] list/tuple or array, float, indicate voxel range.
+            format: xyzxyz, minmax
+        max_points: int. indicate maximum points contained in a voxel
+        max_voxels: int. indicate maximum voxels this function create.
+    Returns:
+        voxels: [M, max_points, ndim] float tensor.
+        coordinates: [M, 3] int tensor. contains coordinates in grid
+        num_points_per_voxel: [M] int tensor.
+    '''
+    if not isinstance(voxel_size, np.ndarray):
+        voxel_size = np.array(voxel_size, dtype=points.dtype)
+    if not isinstance(coors_range, np.ndarray):
+        coors_range = np.array(coors_range, dtype=points.dtype)
+    voxelmap_shape = (coors_range[3:] - coors_range[:3]) / voxel_size
+    voxelmap_shape = tuple(np.round(voxelmap_shape).astype(np.int32).tolist())
+    # voxelmap_shape: [nz, ny, nx, nsweeps], int tensor.
+    voxelmap_shape = voxelmap_shape + (nsweeps, )
+
+    num_points_pre_voxel = np.zeros(shape=(max_voxels,), dtype=np.int32)
+    coor_to_voxelidx = -np.ones(shape=voxelmap_shape, dtype=np.int32)
+    coors = np.zeros(shape=(max_voxels, 4), dtype=np.int32)
+
+    voxels = np.zeros(shape = (max_voxels, max_points, points.shape[-1]), dtype=points.dtype)
+    voxel_num = _points_to_voxel(
+        points,
+        voxel_size,
+        coors_range,
+        num_points_pre_voxel,
+        coor_to_voxelidx,
+        voxels,
+        coors,
+        max_points,
+        max_voxels,
+    )
+    coors = coors[:voxel_num]
+    voxels = voxels[:voxel_num]
+    num_points_pre_voxel = num_points_pre_voxel[:voxel_num]
+
+    return voxels, coors, num_points_pre_voxel
+```
 # Git
 ## 开发场景
 1. 初始化并和远程分支创建链接
