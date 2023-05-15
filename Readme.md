@@ -161,6 +161,40 @@ def NMS(predictions, scores, threshold):
     return res
 ```
 ## Label Assignment of SSD
+SSD 目标检测有两个原则：
+1. 每个真实框和与其具有最大 IOU 的先验框匹配
+2. 剩余的先验框和与其最大 IOU 的真实框匹配，并将 IOU 大于一定阙值的先验框作为正样本
+```
+def match_anchor_and_gt(threshold, truths, priors, variances, labels, location_truth, confi_truth, idx):
+    '''
+    Args:
+        threshold: float.
+        truths: [N, 4], float tensor. contains border coordinates
+        priors: [M, 4], float tensor. contains border coordinates of priors
+        variances: list of float. for encode predictions
+            format: [0.1, 0.2]
+        labels: [N,] int32 tensor. contains class number
+        locations_truth: [batch_size, M, 4] float tensor. contains prediction for priors.
+            OUT
+        confi_truth: [batch_size, M] int32 tensor. contains label prediction for priors.
+            OUT
+        idx: batch index
+    Returns: None
+    '''
+    BACKGROUND_CLASS = 0
+    ious = IOU(truths, priors)
+    best_prior_iou, best_prior_idx = ious.max(1, keepdim=False)
+    best_truth_iou, best_truth_idx = ious.max(0, keepdim=False)
+    best_truth_iou.index_fill_(0, best_prior_idx, 2)
+    for j in range(best_prior_idx.size(0)):
+        best_truth_idx[best_truth_idx[j]] = j
+    
+    location_matches = truths[best_truth_idx]
+    lables_matches = labels[best_truth_idx]
+    lables_matches[best_truth_iou < threshold] = BACKGROUND_CLASS
+    location_truth[idx] = encode(location_matches, priors, variances)
+    confi_truth[idx] = lables_matches
+```
 ## points 2 voxel
 ```
 def _points_to_voxel(
