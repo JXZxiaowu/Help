@@ -195,6 +195,88 @@ def match_anchor_and_gt(threshold, truths, priors, variances, labels, location_t
     location_truth[idx] = encode(location_matches, priors, variances)
     confi_truth[idx] = lables_matches
 ```
+## 损失计算
+prediction 给出的 confidence 是没有经过 softmax 的，在困难样本挖掘时，需要根据损失排序，根据 softmax 和 交叉熵 进行等式推理能够得出损失等于 log_sum_exp(x) - x, x: format [batch, N, num_classes] or [-1, num_classes]
+```
+def forward(predictions, targets):
+    '''
+    class variable member:
+        self.threshold
+        self.variance
+        self.use_gpu
+        self.num_class
+        self.negpos_ratio
+    Args:
+        predictions: list
+            formate: [locations, confidence, priors]
+        targets: 
+    Returns:
+        loss of confidence
+        loss of locations
+    '''
+    # loc_data: [batch_size, M, 4] float tensor.
+    # conf_data: [batch_size, M, 21] float tensor.
+    loc_data, conf_data, priors = predictions
+    batch_size = loc_data.size(0)
+    num_priors = priors.size(0)
+    
+    loc_match = torch.Tensor((batch_size, num_priors, 4), require_grad = False)
+    conf_match = torch.Tensor((batch_size, num_priors), require_grad = False)
+    for idx in range(batch_size):
+        loc_truths = targets[idx, :, :-1].data
+        labels = targets[idx, :, -1].data
+        match(threshold, loc_truths, priors, variance, labels, loc_match, conf_match)
+    if use_gpu:
+        loc_match = loc_match.cuda()
+        conf_match = conf_match.cuda()
+    
+    # regression L1 for positive samples 
+    positive = conf_match > 0
+    
+    positive_idx = positive.unsqueeze(positive_idx.dim()).expand_as(loc_match)
+    loc_positive = loc_match[positive_idx].view(-1, 4)
+    loss_loc = F.smooth_l1_loss(loc_positive, loc_truths[positive_idx].view(-1, 4), size_average=False)
+
+    batch_conf = conf_data.view(-1, num_classes)
+    loss_conf = log_sum_exp(batch_conf) - batch_conf.gather(1, conf_match.view(-1,1))
+    loss_conf[positive_idx.view(-1, 1)] = 0
+    loss_conf = loss_conf.view(batch_size, -1)
+    _, loss_idx = loss_conf.sort(1, descending=True)
+    _, idx_rank = loss_idx.sort(1)
+    num_positive = positive_idx.sum(dim=1, keepdim=True)
+    num_negitive = torch.clamp(negpos_ratio * num_positive, max=num_priors - num_positive)
+    neg = idx_rank < num_negitive
+
+    negitive_idx = neg.squeeze(2).expand_as(conf_data)
+    positive_idx = positive.squeeze(2).expand_as(conf_data)
+    loss_conf = F.cross_entropy(conf_data[(positive_idx + negitive_idx).gt(0)], conf_match[(positive + neg).gt(0)], size_average=False)
+
+    num_positive = num_positive.sum()
+    loss_conf = loss_conf / num_positive
+    loss_loc = loss_loc / num_positive
+    return loss_conf, loss_loc
+```
+## AP
+```
+def voc_ap(rec, prec, ues_07_metric=False):
+    if ues_07_metric:
+        ap = 0
+        for t in np.arange(0., 1.1, 0.1):
+            if np.sum(rec >= t) == 0:
+                p = 0
+            else:
+                p = np.max(prec[rec>=t])
+            ap = ap + p / 11
+    else:
+        mrec = np.concatenate(([0.], rec, [1.]))
+        mprec = np.concatenate(([0.], prec, [0.]))
+        for i in range(mprec.size- 1, 0, -1):
+            mprec[i-1] = np.maximun(mprec[i-1], mprec[i])
+        i = np.where(mprec[1:] != mprec[:-1])[0]
+        
+        ap = np.sum((mrec[i+1] - mrec[i]) * mprec[i+1])
+    return ap
+```
 ## points 2 voxel
 ```
 def _points_to_voxel(
