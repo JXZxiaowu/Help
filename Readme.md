@@ -35,7 +35,36 @@ unique_ptr<T> make_unique(Args&&... args){
 - expired() 返回内存是否被释放
 
 ### auto_ptr C++17 delete
-
+## 整数快速输入输出
+```C++11
+int read(){
+    int x = 0, w = 1;
+    char ch = 0
+    while (ch<'0'||ch>'9'){
+        if(ch == '-) w=-1;
+        ch = getchar();
+    }
+    while(ch>='0'&&ch<'9'){
+        x=(x<<1)+(x<<3)+(x^48);
+        ch=getchar();
+    }
+    return x*w;
+}
+```
+```C++11
+int write(int num){
+    if(num<0){
+        num=-num;
+        putchar('-');
+    }
+    static int stack[35];
+    int top = 0;
+    do{
+        stack[top++] = num%10, num=num/10;
+    } while(num);
+    while(top) putchar(stack[--top] + 48);
+}
+```
 # 旋转和平移
 ## 二维旋转
 X->Y为旋转角度的正反向，则
