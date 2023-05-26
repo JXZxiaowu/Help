@@ -419,9 +419,63 @@ def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, m
 4.  push 到远程 feature 分支上
 
 5. 在远程 feature 分支上执行 git rebase 合并到远程 master 分支上
-## 常用命令
+## 本地常用命令
+### checkout and HEAD
+用来将 HEAD 指向指定节点/分支
+- HEAD : 指向正在其基础上进行工作的提交记录，通常指向分支名。
+- git checkout - b bugFix : 创建名为 bugFix 的分支并将 HEAD 切换过去
+### branch
+创建、修改、查看分支
+- git branch bugFix HEAD : 在 HEAD 处创建新的分支
 - git branch -a : 查看所有分支
 - git branch -r : 查看所有远程分支
+- git branch -f main HEAD : 移动分支 main 指向 HEAD
+### merge and rebase
+- merge 创建一个新的提交，该提交有两个父提交
+- rebase 会从两个分支的共同祖先开始提取待变分支上的修改，将待变分支指向基分支的最新提交，最后将提取的修改应用到基分支的最新提交的后面。
+### reset and revert
+- reset : 将当前分支回滚到指定分支
+- revert : 创建新的提交，该提交会撤销指定提交的变更。
+- 区别 : reset 无法共享，而 revert 创建新的提交，可以 push 到远程共享
+### cherry-pick
+cherry-pick 可以将提交树上任何地方的提交记录取过来追加到 HEAD 上（只要不是 HEAD 上游的提交就没问题）。
+### describe
+git describe HEAD : 查看描述
+## 远程常用命令
+### 远程分支
+远程分支的的命名规范是 remote_name/branch_name   
+当切换到远程分支或在远程分支上提交时，会出现 HEAD 与 origin/main 分离的情况，这是因为origin/main 只有在远程仓库中相应的分支更新了以后才会更新。
+### fetch
+git fetch 完成两步
+    - 从远程仓库下载本地仓库中缺失的提交记录
+    - 更新远程分支指针
+git fetch 并不会改变你本地仓库的状态。它不会更新你的 main 分支，也不会修改你磁盘上的文件。所以, 你可以将 git fetch 的理解为单纯的下载操作 :D
+### pull
+使用 git fetch 获取远程数据后，我们可能想将远程仓库中的变化更新到我们的工作中。其实有很多方法：
+- git cherry-pick origin/main
+- git rebase origin/master
+- git merge origin/master
+实际上，Git 提供了 git pull 完成这两个操作 :D
+### push
+git push 负责将你的变更上传到指定的远程仓库，并在远程仓库上合并你的新提交记录。
+```
+假设你周一克隆了一个仓库，然后开始研发某个新功能。到周五时，你新功能开发测试完毕，可以发布了。但是 —— 天啊！你的同事这周写了一堆代码，还改了许多你的功能中使用的 API，这些变动会导致你新开发的功能变得不可用。但是他们已经将那些提交推送到远程仓库了，因此你的工作就变成了基于项目旧版的代码，与远程仓库最新的代码不匹配了。
+
+这种情况下, git push 就不知道该如何操作了。如果你执行 git push，Git 应该让远程仓库回到星期一那天的状态吗？还是直接在新代码的基础上添加你的代码，亦或由于你的提交已经过时而直接忽略你的提交？
+
+因为这情况（历史偏离）有许多的不确定性，Git 是不会允许你 push 变更的。实际上它会强制你先合并远程最新的代码，然后才能分享你的工作。
+
+origin: c0 -> c1 -> c2 <-main
+local: c0 -> c1 -> C3 <-main
+             ^
+             |
+             origin/main
+我们想要提交 C3，但是 C3 基于远程分支中的 c1，而在远程仓库中分支已经更新到 c2 了，所以 Git 拒绝 git push :D
+```
+我们可以这样解决
+- git fetch; git rebase origin/master; git push
+- 尽管 git merge 创建新的分支，但是它告诉 Git 你已经合并了远程仓库的所有变更，也能够完成 push 操作
+- git pull --rebase 相当于 git fetch 和 git rebase
 - git log  查看提交记录
 - git reflog  可查看修改记录，包括回退记录
 - git reset --hard {commit id} 回退版本
