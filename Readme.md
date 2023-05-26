@@ -432,7 +432,7 @@ def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, m
 - git branch -f main HEAD : 移动分支 main 指向 HEAD
 ### merge and rebase
 - merge 创建一个新的提交，该提交有两个父提交
-- rebase 会从两个分支的共同祖先开始提取待变分支上的修改，将待变分支指向基分支的最新提交，最后将提取的修改应用到基分支的最新提交的后面。
+- rebase base_branch change_branch : 会从两个分支的共同祖先开始提取待变分支上的修改，将待变分支指向基分支的最新提交，最后将提取的修改应用到基分支的最新提交的后面。
 ### reset and revert
 - reset : 将当前分支回滚到指定分支
 - revert : 创建新的提交，该提交会撤销指定提交的变更。
@@ -449,13 +449,14 @@ git describe HEAD : 查看描述
 git fetch 完成两步
     - 从远程仓库下载本地仓库中缺失的提交记录
     - 更新远程分支指针
-git fetch 并不会改变你本地仓库的状态。它不会更新你的 main 分支，也不会修改你磁盘上的文件。所以, 你可以将 git fetch 的理解为单纯的下载操作 :D
+git fetch 并不会改变你本地仓库的状态。它不会更新你的 main 分支，也不会修改你磁盘上的文件。所以, 你可以将 git fetch 的理解为单纯的下载操作 :D   
+git fetch origin master : 只现在指定的远程分支并更新指针
 ### pull
 使用 git fetch 获取远程数据后，我们可能想将远程仓库中的变化更新到我们的工作中。其实有很多方法：
 - git cherry-pick origin/main
 - git rebase origin/master
-- git merge origin/master
-实际上，Git 提供了 git pull 完成这两个操作 :D
+- git merge origin/master   
+实际上，Git 提供了 git pull 完成这两个操作, git pull = git fetch; git merge :D
 ### push
 git push 负责将你的变更上传到指定的远程仓库，并在远程仓库上合并你的新提交记录。
 ```
@@ -475,7 +476,14 @@ local: c0 -> c1 -> C3 <-main
 我们可以这样解决
 - git fetch; git rebase origin/master; git push
 - 尽管 git merge 创建新的分支，但是它告诉 Git 你已经合并了远程仓库的所有变更，也能够完成 push 操作
-- git pull --rebase 相当于 git fetch 和 git rebase
+- git pull --rebase 相当于 git fetch 和 git rebase   
+单参数的 push
+- git push origin src : src 是一个本地分支
+- git push origin src:dest : dest 是远程分支(如果不存在则创建)
+### 跟踪远程分支
+- git branch -u origin/main feature : 对于已存在的分支 feature 使其跟踪远程 main 分支
+- git checkout -b feature origin/main : 创建分支 feature 并使其准总远程 main 分支
+## 其他命令
 - git log  查看提交记录
 - git reflog  可查看修改记录，包括回退记录
 - git reset --hard {commit id} 回退版本
@@ -485,4 +493,3 @@ local: c0 -> c1 -> C3 <-main
 - git remote add url 添加一个远程仓库
 - git remote rm name 删除远程仓库
 - git commit --amend -m "new_message" 重命名最新一次的 commit 记录
-1
