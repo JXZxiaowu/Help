@@ -485,3 +485,4 @@ local: c0 -> c1 -> C3 <-main
 - git remote add url 添加一个远程仓库
 - git remote rm name 删除远程仓库
 - git commit --amend -m "new_message" 重命名最新一次的 commit 记录
+1
