@@ -398,6 +398,10 @@ def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, m
     return voxels, coors, num_points_pre_voxel
 ```
 # Git
+## Git 练习
+```
+https://learngitbranching.js.org/?locale=zh_CN
+```
 ## 开发场景
 1. 初始化并和远程分支创建链接
   ```
