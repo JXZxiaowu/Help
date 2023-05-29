@@ -449,6 +449,10 @@ git describe HEAD : 查看描述
 ### 远程分支
 远程分支的的命名规范是 remote_name/branch_name   
 当切换到远程分支或在远程分支上提交时，会出现 HEAD 与 origin/main 分离的情况，这是因为origin/main 只有在远程仓库中相应的分支更新了以后才会更新。
+### set origin url
+```
+git remote set-url origin https://github.com/JXZxiaowu/Help.git
+```
 ### fetch
 git fetch 完成两步
 - 从远程仓库下载本地仓库中缺失的提交记录
