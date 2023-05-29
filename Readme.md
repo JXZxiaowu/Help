@@ -451,8 +451,9 @@ git describe HEAD : 查看描述
 当切换到远程分支或在远程分支上提交时，会出现 HEAD 与 origin/main 分离的情况，这是因为origin/main 只有在远程仓库中相应的分支更新了以后才会更新。
 ### fetch
 git fetch 完成两步
-    - 从远程仓库下载本地仓库中缺失的提交记录
-    - 更新远程分支指针
+- 从远程仓库下载本地仓库中缺失的提交记录
+- 更新远程分支指针
+
 git fetch 并不会改变你本地仓库的状态。它不会更新你的 main 分支，也不会修改你磁盘上的文件。所以, 你可以将 git fetch 的理解为单纯的下载操作 :D   
 git fetch origin master : 只现在指定的远程分支并更新指针
 ### pull
@@ -497,3 +498,113 @@ local: c0 -> c1 -> C3 <-main
 - git remote add url 添加一个远程仓库
 - git remote rm name 删除远程仓库
 - git commit --amend -m "new_message" 重命名最新一次的 commit 记录
+
+# setuptools
+进行源码安装的工具
+## Basic 使用
+```
+# setup.py 最小配置
+from setuptools import setup
+setup(
+    name = "mypackage",     
+    version = "0.0.1",
+    install_requires =[
+        'requests',
+        'importlib-metadata; python_version == "3.8"',
+    ],
+)
+```
+最后将代码组织成这种形式
+```
+mypackage
+├── pyproject.toml  # and/or setup.cfg/setup.py (depending on the configuration method)
+|   # README.rst or README.md (a nice description of your package)
+|   # LICENCE (properly chosen license information, e.g. MIT, BSD-3, GPL-3, MPL-2, etc...)
+└── mypackage
+    ├── __init__.py
+    └── ... (other Python files)
+```
+运行以下命令构建 .whl 和 tar.gz（可以上传或安装）
+```
+python -m build
+```
+
+## 发现 Package
+### 指定 Package
+最简单的情况是
+```
+setup(
+    # ...
+    packages = ["mypkg", "mypkg.subpkg1", "mypkg.subpkg2"]  # install .whl 后 import mypkg/mypkg.subpkg
+)
+```
+这里注意如果我们仅有 mypkg, 那么 mypkg.subpkg 是不会被 build 的。
+如果 mypkg 不在当前目录的根目录下，那么可以使用 package_dir 配置。
+```
+setup(
+    # ...
+    package_dir = {"": "src"}   # build 的对象将包含 src/mypkg, src/mypkg/subpkg
+    # package_dir = {
+    #     "mypkg": "src",
+    #     "mypkg/subpkg": "src",
+    # },
+)
+```
+默认情况下 setup.py 路径下的所有包都会被包含。
+### find_package
+find_packages() takes a source directory and two lists of package name patterns to exclude and include, and then returns a list of str representing the packages it could find.
+```
+mypkg
+├── pyproject.toml  # AND/OR setup.cfg, setup.py
+└── src
+    ├── pkg1
+    │   └── __init__.py
+    ├── pkg2
+    │   └── __init__.py
+    ├── additional
+    │   └── __init__.py
+    └── pkg
+        └── namespace
+            └── __init__.py
+```
+```
+form setuptools import find_packages
+
+setup(
+    # ...
+    packages = find_packages(
+        where = 'src',  # '.' by default
+        include = ['pkg*'],   # ['*']  by default   
+    ),
+    package_dir = {"":"src"},
+    # ...
+)
+```
+find_packages 返回 ['pkg1', 'pkg2', 'pkg']，所以必须使用 package_dir。如果是子模块，那么字符串为 mypkg.subpkg.
+- 问题是在 src 下的没有 __init__.py 文件的目录不会被考虑（查找），这需要使用 find_namespace_packages 解决.
+### find_namespace_packages
+```
+foo
+├── pyproject.toml  # AND/OR setup.cfg, setup.py
+└── src
+    └── timmins
+        └── foo
+            └── __init__.py
+```
+需要使用
+```
+setup(
+    # ...
+    packages=find_namespace_packages(where='src'),
+    package_dir={"": "src"}
+    # ...
+)
+```
+安装 .whl 后，import timmins.foo 使用.
+### 检查 build 是否正确
+在 build 你的文件之后，使用
+```
+tar tf dist/*.tar.gz
+unzip -l dist/*.whl
+```
+查看是否有包没有被包含.
