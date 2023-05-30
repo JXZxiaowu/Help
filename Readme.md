@@ -401,9 +401,10 @@ def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, m
 git 有四种 space :
 - workspace
 - index file
-- local repository
-- remote repository
+- local
+- remote
 
+当我们修改一个文件时，改变是没有被缓存的(unstaged), 为了能够 commit, 我们必须 stage it—— add it to index using git add. 当我们执行 commit 时便是将加入 index file 中的东西提交.
 ## Git 练习
 ```
 https://learngitbranching.js.org/?locale=zh_CN
@@ -447,6 +448,8 @@ https://learngitbranching.js.org/?locale=zh_CN
 - reset : 将当前分支回滚到指定分支
 - revert : 创建新的提交，该提交会撤销指定提交的变更。
 - 区别 : reset 无法共享，而 revert 创建新的提交，可以 push 到远程共享
+
+<img src = "img/2023-05-30 172506.png">
 ### cherry-pick
 cherry-pick 可以将提交树上任何地方的提交记录取过来追加到 HEAD 上（只要不是 HEAD 上游的提交就没问题）。
 ### describe
