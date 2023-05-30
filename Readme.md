@@ -612,3 +612,60 @@ tar tf dist/*.tar.gz
 unzip -l dist/*.whl
 ```
 查看是否有包没有被包含.
+## 依赖管理
+有三种依赖:
+- build system requirement
+- required dependency
+- optional dependency
+### build system requirement
+如果是 setup.py，无需指定
+### required dependency
+```
+setup(
+    # ...
+    install_requires=[
+        'docutils',
+        'BazSpam=1.1',
+    ],
+)
+```
+当 install project 时，所有未被安装的 dependency 都会被下载、build、安装。  
+URL dependency
+```
+setup(
+    # ...
+    install_requires=[
+        "Package-A @ git+https://example.net/package-a.git@main",
+    ],
+    # ...
+)
+```
+### 最低 python 版本
+```
+setup(
+    python_requires=">=3.6",
+    # ...
+)
+```
+## Build extension modules
+setuptools can buld C/C++ extension modules. setup() 函数中的参数 ext_modules 接收 setuptools.Extension 对象列表. 例如
+```
+<project_folder>
+├── pyproject.toml
+└── foo.c
+```
+指示 setuptools 将 foo.c 编译成扩展模块 mylib.foo, 我们需要
+```
+from setuptools import setup, Extension
+
+setup(
+    ext_modules = [
+        Extension(
+            name="mylib.foo",   # as it would be imported
+                                # may include packages/namespaces separated by '.'
+            sources = ["foo.c"], # all sources are compiled into a single binary file
+        ),
+    ]
+)
+```
+### compiler and linker 选项
