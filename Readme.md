@@ -398,6 +398,12 @@ def points_to_voxel(points, voxel_size, coors_range, nsweeps, max_points = 35, m
     return voxels, coors, num_points_pre_voxel
 ```
 # Git
+git 有四种 space :
+- workspace
+- index file
+- local repository
+- remote repository
+
 ## Git 练习
 ```
 https://learngitbranching.js.org/?locale=zh_CN
@@ -669,5 +675,3 @@ setup(
 )
 ```
 ### compiler and linker 选项
-
-for commit
