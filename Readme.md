@@ -1,4 +1,40 @@
 # C++
+## 编译与链接
+如 Java，当我们导入一个 module 时，我们不仅能够得到 declarations for imported symbols，并表明要链接他们。但是在C/C++ 中我们必须分开做这件事:
+1. 通过 ·#include .h· 获得 declarations for imported symbols，这样编译器知道他们是什么
+2. 链接 object file, static library and dynamic library 以访问代码
+### object file 是什么
+> An object file is the real output from the compilation phase. It's mostly machine code, but has info that allows a linker to see what symbols are in it as well as symbols it requires in order to work.   
+A linker takes all these object files and combines them to form one executable.
+
+oject file 形式上包含:
+- 可重定向代码
+- 导出的符号/ exported symbols : 可以被其他编译单元使用的函数、类、变量等
+- 导入的符号/ imported symbols : 本单元所使用的他其他编译单元的符号
+
+### LIB and DLL
+- LIB : 静态库(.a or .lib)
+- DLL : 动态库
+
+将重复使用的代码/功能放入库中，linker 再将编译后的代码插入到程序中。
+
+动态库则更进一步，动态库存储在本地，并不插入程序中，只在需要时被加载入内存。这也意味着在每一台机器上都必须有动态库副本。
+
+### library and Object file
+一个静态库是将一堆 object file 放在一起。连接一个静态库和链接所有的 object files 是相同的。 
+
+动态库则完全不同，它被看作是特殊的执行文件。不同于普通执行文件生成 entry point，动态库只声明自身的 imported and exported symbols. 在运行时，系统调用能够获得这些符号的地址并正常的使用
+### Macro
+### include 守卫
+```
+#ifndef TOKEN
+#define TOKEN
+/* code */
+# else
+/* code */
+# endif
+```
+当头文件被 include，检查 TOKEN 是否被唯一定义，如果没有定义，就将会定义 TOKEN 并继续下面的代码。当文件被重复 include，执行 else 中的代码。它用来防止符号的多次声明。
 ## 智能指针
 ### unqiue_ptr
 ```
@@ -677,4 +713,3 @@ setup(
     ]
 )
 ```
-### compiler and linker 选项
