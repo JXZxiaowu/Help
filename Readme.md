@@ -24,7 +24,7 @@ oject file 形式上包含:
 一个静态库是将一堆 object file 放在一起。连接一个静态库和链接所有的 object files 是相同的。 
 
 动态库则完全不同，它被看作是特殊的执行文件。不同于普通执行文件生成 entry point，动态库只声明自身的 imported and exported symbols. 在运行时，系统调用能够获得这些符号的地址并正常的使用
-### Macro
+## Macro
 ### include 守卫
 ```
 #ifndef TOKEN
