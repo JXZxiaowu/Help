@@ -12,16 +12,16 @@ oject file 形式上包含:
 - 导出的符号/ exported symbols : 可以被其他编译单元使用的函数、类、变量等
 - 导入的符号/ imported symbols : 本单元所使用的他其他编译单元的符号
 
-### LIB and DLL
+### LIB and DLL(shared library)
 - LIB : 静态库(.a or .lib)
-- DLL : 动态库
+- DLL : 动态库(.so)
 
 将重复使用的代码/功能放入库中，linker 再将编译后的代码插入到程序中。
 
 动态库则更进一步，动态库存储在本地，并不插入程序中，只在需要时被加载入内存。这也意味着在每一台机器上都必须有动态库副本。
 
 ### library and Object file
-一个静态库是将一堆 object file 放在一起。连接一个静态库和链接所有的 object files 是相同的。 
+Static libraries are archives of object files。连接一个静态库和链接所有的 object files 是相同的。 
 
 动态库则完全不同，它被看作是特殊的执行文件。不同于普通执行文件生成 entry point，动态库只声明自身的 imported and exported symbols. 在运行时，系统调用能够获得这些符号的地址并正常的使用
 ## Macro
@@ -35,6 +35,121 @@ oject file 形式上包含:
 # endif
 ```
 当头文件被 include，检查 TOKEN 是否被唯一定义，如果没有定义，就将会定义 TOKEN 并继续下面的代码。当文件被重复 include，执行 else 中的代码。它用来防止符号的多次声明。
+## GNU
+### gcc / g++ compiler
+四个过程:
+- preprocessing
+- compilation proper
+- assembly(汇编)
+- libking
+
+overall options   
+`-c` : Preprocess, compile, and assemble into object files, but don't link   
+`-S` : stop after compilation proper, do not assembly. 输出是汇编代码文件   
+`-E` : stop after proprocessing, 输出是预处理后的源文件，将被放到标准输出里    
+`-o file` : 将输出定向到文件 file. 无论是 preprocessed code, object file, assembler file or executable file   
+`-fPIC` : 生成适用于 shared library 的 position-independent code. Such code accesee all constant addresses through a global offset table.   
+`-Ldir` : Add directory dir to the list of directories to be searched for -l
+`-llibrary/ -l library` : Search the library named library when linking. 如果同时存在 static and dynamic library, 除非 -static 被使用否则链接动态库.
+`-shared` : 通过 object files 生成 shared library
+
+生成静态库并连接
+```
+# Create the object files for the static library
+gcc -c       src/tq84/add.c    -o bin/static/add.o
+gcc -c       src/tq84/answer.c -o bin/static/answer.o
+
+# Create static library
+ar ar rcs bin/static/libtq84.a bin/static/add.o bin/static/answer.o
+
+# Link statically
+gcc  bin/main.o  -Lbin/static -ltq84 -o bin/statically-linked
+```
+
+生成动态库并连接
+```
+# object files for shared libraries need to be compiled as position independent
+gcc -c -fPIC src/tq84/add.c    -o bin/shared/add.o
+gcc -c -fPIC src/tq84/answer.c -o bin/shared/answer.o
+
+# Create the shared library
+gcc -shared bin/shared/add.o bin/shared/answer.o -o bin/shared/libtq84.so
+
+# Link dynamically with the shared library
+gcc  bin/main.o -Lbin/shared -ltq84 -o bin/use-shared-library
+
+# configure the LD_LIBRARY_PATH if the shared library is not installed in a default location
+LD_LIBRARY_PATH=$(pwd)
+# execute
+./use-shared-library
+```
+### ld linker
+`ld -o main main.o func.o`
+## Make and makefile
+Make 以 makefile 为指导编译工程. 事实上 Make 使用 gcc/g++ 或其他编译器进行工作.   
+当工程越来越大，所需要的编译指令也变得越多，所以将其放入脚本中，后来便形成了 built system (Make, Ninja)
+### Makefile 语法
+```
+target : prerequisite
+    command
+    command
+```
+Make 决定运行 target 下的命令当 target file 不存在或者 prerequisite file 被修改.
+### The all targets
+执行 `make` 指令会运行第一个 target. 执行所有的 targets
+```
+all : one two
+
+one: 
+    touch one
+two:
+    touch two
+```
+### Multiple targets
+```
+all: f1.o f2.o
+
+f1.o f2.o:
+	echo $@
+# Equivalent to:
+# f1.o:
+#	 echo f1.o
+# f2.o:
+#	 echo f2.o
+```
+### make vs make install
+执行 make 时执行第一个 target; mask install 执行 install target.
+## CMake
+有了 Make 和 Makefile, 工程的比构建变得简单。但是对于不同的平台、编译器，Makefile 需要被重写才能完成构建工作。为了支持跨平台、跨编译器等，人们提出了 meta build system. CMake 便是其中之一，它通过 CMakefile.txt file、具体平台、编译器生成 Makefile 文件.
+
+我们可以通过手写 Makefile 实现 build project, 但是 CMake 是跨平台的，当平台变化时，我们不需要重写 Makefile.
+### A basic starting
+1. 开始于指定一个最低的 CMake 版本, 使用 `cmake_minimum_required(VERSION 3.10)`
+2. 使用 project 命令指定工程名称, `project(Tutorial)`
+3. 使用 add_executable() 指示 CMake 使用指定的源文件创建执行文件 `add_executable(Tutorial tutorial.cxx)`
+### 指定 C++ 版本
+4. 通过两个特殊变量 CMAKE_CXX_STANDARD 和 CMAKE_CXX_STANDARD_REQUIRED
+```
+# 确保 CMAKE_CXX_STANDARD 的 declaration 在 add_executable 的前面
+set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_STANDARD_REQUIRED True)
+```
+### 指定工程版本和配置头文件
+- `project(Tutorial 1.0)` 指定工程名称和版本   
+- `configure_file(TutorialConfig.h.in TutorialConfig.h)` 将带有 CMake 变量的 input file(.in) 拷贝到指定 include file, 同时替换其中的 CMake 变量.
+- `target_include_directory(Tutorial PUBLIC "${PROJECT_BINARY_DIR}")` 由于 .in file 将会被写到 priject build directory(project binary directory), 我们需要将该目录加入到 include files 的查询目录列表中.
+    > **Note:** 使用 target_include_directory 指定 target 在那里寻找 include files
+- 创建定义了 CMake 变量的 input file, 变量的语法是`@VAR@`
+```
+# TutorialConfig.h.in
+
+#define Tutorial_VERSION_MAJOR @Tutorial_VERSION_MAJOR@
+```
+
+
+
+
+# C++ language
 ## 智能指针
 ### unqiue_ptr
 ```
