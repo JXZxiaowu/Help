@@ -123,6 +123,12 @@ f1.o f2.o:
 有了 Make 和 Makefile, 工程的比构建变得简单。但是对于不同的平台、编译器，Makefile 需要被重写才能完成构建工作。为了支持跨平台、跨编译器等，人们提出了 meta build system. CMake 便是其中之一，它通过 CMakefile.txt file、具体平台、编译器生成 Makefile 文件.
 
 我们可以通过手写 Makefile 实现 build project, 但是 CMake 是跨平台的，当平台变化时，我们不需要重写 Makefile.
+### Build and Run
+```
+cd Tutorial_build
+cmake ../Tutorial       # 生成 build system
+cmake --build .         # compile/link the project
+```
 ### A basic starting
 1. 开始于指定一个最低的 CMake 版本, 使用 `cmake_minimum_required(VERSION 3.10)`
 2. 使用 project 命令指定工程名称, `project(Tutorial)`
@@ -136,15 +142,111 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 ```
 ### 指定工程版本和配置头文件
 - `project(Tutorial 1.0)` 指定工程名称和版本   
-- `configure_file(TutorialConfig.h.in TutorialConfig.h)` 将带有 CMake 变量的 input file(.in) 拷贝到指定 include file, 同时替换其中的 CMake 变量.
-- `target_include_directory(Tutorial PUBLIC "${PROJECT_BINARY_DIR}")` 由于 .in file 将会被写到 priject build directory(project binary directory), 我们需要将该目录加入到 include files 的查询目录列表中.
-    > **Note:** 使用 target_include_directory 指定 target 在那里寻找 include files
+- `configure_file(TutorialConfig.h.in TutorialConfig.h)` 将带有 CMake 变量的 input file(.in) 拷贝到指定 include file, 同时替换其中的 CMake 变量. TutorialConfig.h.in 存在于 SOURCE_DIR 而 TutorialConfig.h 将会通过 TutorialConfig.h.in 生成到 BUILD_DIR 中
+- `target_include_directory(Tutorial PUBLIC "${PROJECT_BINARY_DIR}")` add the binary tree to the search path for include files so that we will find TutorialConfig.h
 - 创建定义了 CMake 变量的 input file, 变量的语法是`@VAR@`
 ```
 # TutorialConfig.h.in
 
 #define Tutorial_VERSION_MAJOR @Tutorial_VERSION_MAJOR@
 ```
+### 创建 Library
+我们可以将将 project 组织成多个子目录的形式. 在每个子目录中存在多个 source files 以及一个 CMakeLists.txt. 在 top level 的 CMakeLists.txt 中使用 add_subdirectory 以构建子目录.
+
+一旦 library 被创建，它通过 target_include_directories 和 target_link_libraries() 与可执行 target 连接起来.
+
+例子:
+```
+Root
+-- MathFunctions
+    -- CMakeLists.txt
+    -- MathFunctions.cxx
+    -- MathFunctions.h
+    -- mysqrt.cxx
+    -- mysqrt.h
+-- CMakeLists.txt
+-- tutorial.cxx
+```
+1. 创建 library target
+```
+# MathFunctions/CMakeLists.txt
+
+add_library(MathFunctions MathFunctions.cxx mysqrt.cxx)
+```
+> add_library() 
+2. 在 top level CMakeLists.txt 使用`add_subdirectory()`告知 build library target
+```
+# CMakeLists
+add_subdirectory(MathFunctions)
+```
+3. link library target to executable target
+```
+target_link_libraries(Tutorial PUBLIC MathFunctions)
+```
+4. include files location
+```
+# CMakeLists.txt
+
+target_include_directories(Tutorial PUBLIC 
+                        "${PROJECT_BUILD_DIR}"
+                        "${PROJECT_SOURCE_DIR/MathFunctions}")
+# 一个为了寻找由 .in 生成的 TutorialConfig.h
+# 一个为了寻找 library 的 include file
+```
+5. 在 tutorial.cxx 中使用该 library 的功能
+```
+# tutorial.cxx
+
+#include "MathFunctions.h"
+...
+```
+### 构建中的选项
+让用户选择使用 custom implementation 或 standard implementation.
+
+在本例中，让用户选择是否使用 MathFunctions 中的 mysqrt
+
+1. 
+    ```
+    # MathFunctions/CMakeLists.txt
+
+    option(USE_MYSQRT "Use custom sqrt root implementation" ON)     # 默认打开
+    ```
+2. when USE_MYSQRT is ON, 将 compile definitions USE_MYSQRT 放到 target 中
+    ```
+    # MathFunctions/CMakeLists.txt
+    if (USE_MYSQRT)
+        target_compile_definitions(MathFunctions PRIVATE "USE_MYSQRT")
+    ```
+    当 MY_SQRY is ON, USE_MYSQRT 将会被定义
+3. 根据 USE_MYSQRT 是否被定义更改 source file 中的代码
+    ```
+    # MathFunctions/MathFunctions.cxx
+    ...
+    #ifdef USE_MY_SQRT
+        return detial::mysqrt(x)
+    #else
+        return std::sqrt(x)
+    #endif
+    ...
+    ```
+4. build and run `cmake ../Step2 -DUSE_MYSQRT=OFF, cmake --build .`
+5. 如果 USE_MYSQRT 为 OFF, 那么 mysqrt.cxx 依然会被编译, 可以在 if block 中使用 add_sources() 来加入 mysqrt.cxx, 并将 add_library 改为 `add_library(MathFunctions MathFunctions.cxx)`
+
+    另一种是根据 USE_MYSQRT将 mysqrt 单独编译成 library
+    ```
+    # MathFunctions/CMakeLists.txt
+    if (USE_MYSQRT)
+        add_library(SqrtLibrary STATIC mysqrt.cxx)
+        target_link_library(MathFunctions PUBLIC Sqrt Library)
+    ...
+    #endif
+    add_library(MathFunctions MathFunctions.cxx)
+    ...
+    ```
+
+
+
+
 
 
 
