@@ -155,6 +155,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 #define Tutorial_VERSION_MAJOR @Tutorial_VERSION_MAJOR@
 ```
+
+> **configure_file()**: .h.in -> .h file, include file 将会被放到 build 目录.
 ### 创建 Library
 我们可以将将 project 组织成多个子目录的形式. 在每个子目录中存在多个 source files 以及一个 CMakeLists.txt. 在 top level 的 CMakeLists.txt 中使用 add_subdirectory 以构建子目录.
 
@@ -268,7 +270,14 @@ target_include_directories(Tutorial PUBLIC
     target_include_directories(MathFunctions
                             INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
     ```
+
+> **CMAKE_CURRENT_SOURCE_DIR** : 指的是当前处理的 CMakeLists.txt 所在的路径   
+> **PROJECT_SOURCE_DIR** : 工程顶层目录
+> **PROJECT_BINARY_DIR** : Full path to build directory for project.
+
 2. 我们能够安全地从 top level CmakeLists 中删除 `target_include_directories(Tutorial PUBLIC ${PROJECT_BINARY_DIR})`
+### 使用 interface library 设置 C++ standard
+
 ### install
 有时我们不仅需要 build 一个可执行 project, 也需要 installable. 使用 CMake install() 命令来表明安装规则.
 
