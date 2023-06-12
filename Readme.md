@@ -134,6 +134,9 @@ cmake --build .         # compile/link the project
 1. 开始于指定一个最低的 CMake 版本, 使用 `cmake_minimum_required(VERSION 3.10)`
 2. 使用 project 命令指定工程名称, `project(Tutorial)`
 3. 使用 add_executable() 指示 CMake 使用指定的源文件创建执行文件 `add_executable(Tutorial tutorial.cxx)`
+
+> **add_executable()**: 使用指定的 source files 创建 executable. 使用 **add_source()**可以增加 source files.
+
 ### 指定 C++ 版本
 4. 通过两个特殊变量 CMAKE_CXX_STANDARD 和 CMAKE_CXX_STANDARD_REQUIRED
 ```
@@ -175,16 +178,23 @@ Root
 
 add_library(MathFunctions MathFunctions.cxx mysqrt.cxx)
 ```
-> add_library() 
+
+> **add_library()**: 使用指定的 source files 创建 library.
+
 2. 在 top level CMakeLists.txt 使用`add_subdirectory()`告知 build library target
 ```
 # CMakeLists
 add_subdirectory(MathFunctions)
 ```
+
+> **add_subdirectory()**: Adds a subdirectory to the build
+
 3. link library target to executable target
 ```
 target_link_libraries(Tutorial PUBLIC MathFunctions)
 ```
+
+> **target_link_libraries()**  指定需要链接的 library.
 4. include files location
 ```
 # CMakeLists.txt
@@ -195,6 +205,8 @@ target_include_directories(Tutorial PUBLIC
 # 一个为了寻找由 .in 生成的 TutorialConfig.h
 # 一个为了寻找 library 的 include file
 ```
+
+> **target_include_directories()** Specifies include directories to use when compiling a given target.
 5. 在 tutorial.cxx 中使用该 library 的功能
 ```
 # tutorial.cxx
@@ -220,6 +232,8 @@ target_include_directories(Tutorial PUBLIC
         target_compile_definitions(MathFunctions PRIVATE "USE_MYSQRT")
     ```
     当 MY_SQRY is ON, USE_MYSQRT 将会被定义
+
+> **target_compile_definitions()** Specifies compile definitions to use when compiling a given target
 3. 根据 USE_MYSQRT 是否被定义更改 source file 中的代码
     ```
     # MathFunctions/MathFunctions.cxx
