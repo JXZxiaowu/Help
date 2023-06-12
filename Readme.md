@@ -7,7 +7,7 @@
 > An object file is the real output from the compilation phase. It's mostly machine code, but has info that allows a linker to see what symbols are in it as well as symbols it requires in order to work.   
 A linker takes all these object files and combines them to form one executable.
 
-oject file 形式上包含:
+object file 形式上包含:
 - 可重定向代码
 - 导出的符号/ exported symbols : 可以被其他编译单元使用的函数、类、变量等
 - 导入的符号/ imported symbols : 本单元所使用的他其他编译单元的符号
@@ -129,6 +129,7 @@ cd Tutorial_build
 cmake ../Tutorial       # 生成 build system
 cmake --build .         # compile/link the project
 ```
+> **Note:** `cmake ..` 如果出现 `nmake -？` 错误，使用 `cmake -S .. -G "MinGW Makefiles"` 代替.
 ### A basic starting
 1. 开始于指定一个最低的 CMake 版本, 使用 `cmake_minimum_required(VERSION 3.10)`
 2. 使用 project 命令指定工程名称, `project(Tutorial)`
@@ -141,7 +142,8 @@ set(CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 ```
 ### 指定工程版本和配置头文件
-- `project(Tutorial 1.0)` 指定工程名称和版本   
+- `project(Tutorial VERSION 1.0)` 指定工程名称和版本   
+> **Note:** 设置 cxx 变量 `set(CMAKE_CXX_COMPILER "D:/Soft/mingw64/bin/g++.exe"); set(CMAKE_C_COMPILER "D:/Soft/mingw64/bin/gcc.exe")` 在 project() 之前.
 - `configure_file(TutorialConfig.h.in TutorialConfig.h)` 将带有 CMake 变量的 input file(.in) 拷贝到指定 include file, 同时替换其中的 CMake 变量. TutorialConfig.h.in 存在于 SOURCE_DIR 而 TutorialConfig.h 将会通过 TutorialConfig.h.in 生成到 BUILD_DIR 中
 - `target_include_directory(Tutorial PUBLIC "${PROJECT_BINARY_DIR}")` add the binary tree to the search path for include files so that we will find TutorialConfig.h
 - 创建定义了 CMake 变量的 input file, 变量的语法是`@VAR@`
@@ -188,7 +190,7 @@ target_link_libraries(Tutorial PUBLIC MathFunctions)
 # CMakeLists.txt
 
 target_include_directories(Tutorial PUBLIC 
-                        "${PROJECT_BUILD_DIR}"
+                        "${PROJECT_BINARY_DIR}"
                         "${PROJECT_SOURCE_DIR/MathFunctions}")
 # 一个为了寻找由 .in 生成的 TutorialConfig.h
 # 一个为了寻找 library 的 include file
@@ -242,6 +244,37 @@ target_include_directories(Tutorial PUBLIC
     #endif
     add_library(MathFunctions MathFunctions.cxx)
     ...
+    ```
+### Usage requirements for a library
+使用 CMake 的方法定义 library usage requirements, 然后将 usage requirements 自动传递给 target.
+
+1. We want to state that anybody linking to MathFunctions library needs to include the current source directory, while MathFunctions itself doesn't. This can be expressed with an INTERFACE usage requirement.
+    ```
+    # MathFunctions/CMakeLists
+    target_include_directories(MathFunctions
+                            INTERFACE ${CMAKE_CURRENT_SOURCE_DIR})
+    ```
+2. 我们能够安全地从 top level CmakeLists 中删除 `target_include_directories(Tutorial PUBLIC ${PROJECT_BINARY_DIR})`
+### install
+有时我们不仅需要 build 一个可执行 project, 也需要 installable. 使用 CMake install() 命令来表明安装规则.
+
+1. install MathFunctions library and the headers file to lib and include 目录分别地.
+    ```
+    # MathFunctions/CMakeList
+    set(installabel_libs MathFunctions tutorial_compiler_flags)
+    if(TARGET SqrtLibrary)
+        list(APPEND installabel_libs SqrtLibrary)
+    endif()
+    install(TARGET ${installable_libs} DESTINATION lib)
+    install(FILES MathFunctions.h DESTINATION include)
+    ```
+    > **install(TARGET target DESTINATION)** 将 target 安装到指定目录
+    
+    > **set(variable value...)** set variable and its vakue.
+    ```
+    # CMakeList.txt
+    install(TARGETS Tutorial DESTINATION bin)
+    install(FILES "${PROJECT_BINARY_DIR}/TutorialConfig.h" DESTINATION include)
     ```
 
 
