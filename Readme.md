@@ -368,6 +368,110 @@ MathFunctions/MakeTable.cxx 被用来生成 Table.h 以供 MathFUnctions/mysqrt.
     ```
     include(MakeTable.cmake)
     ```
+### Packaging an installer
+binary installation
+```
+# top-level CmakeList.txt
+
+include(InstallRequiredSystembLibraries)
+set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/License.txt")
+set(CPACK_PACKAGE_VERSION_MAJOR "${Tutorial_VERSION_MAJOR}")
+set(CPACK_PACKAGE_VERSION_MINOR "${Tutorial_VERSION_MINOR}")
+set(CPACK_SOURCE_GENERATOR "TGZ")
+include(CPack)
+```
+> **InstallRequiredSystembLibraries** include any runtime libraries that are needed by the project for the current paltform.
+
+我们正常 build project, 并运行 cpack executable 创建 binart distribution：
+```
+cpack --config CPackConfig.cmake
+cpack --config CPackSourceConfig.cmake
+```
+### importing targets
+IMPORTED 将当前 project 之外的 target 转换成逻辑上位于当前 project 的 target. 被 IMPORTED 的 target 不会产生 build 文件. 其分为两类
+#### importing executable
+假设现在我们已经 build & install a myexe executable. 现在我们将其导入到另外一个 CMake project. 首先使用 IMPORTED 告知 CMake 该 target 是一个引用自工程之外的 target, 之后使用 set_property() 告知该 target 的具体位置. 
+```
+add_executable(myexe IMPORTED)
+set_property(TARGET myexe PROPERTY IMPORTED_LOCATION "../install_location/bin/myexe")
+```
+> **set_PROPERTY(TARGET )** reference set_target_properties()
+
+最后我们可以在该工程中使用该 target.
+#### importing libraries
+其他项目的库也可以通过 IMPORTED 访问.
+```
+add_library(foo STATIC IMPORTED)
+set_property(TARGET foo PROPERTY IMPORTED_LOCATION "/path_to_library/libfoo.a")
+```
+如果是 windows , 需要一起导入 .dll & .lib
+```
+add_library(foo STATIC IMPORTED)
+set_property(TARGET foo PROPERTY IMPORTED_LOCATION "C:/PATH_TO_LIBRARY/foo.dll")
+set_property(TARGET foo PROPERTY IMPORTED_LOCATION "C:/PATH_TO_LIBRARY/foo.lib")
+```
+使用库
+```
+add_executable(myexe src.cc)
+target_link_libraries()myexe PRIVETE foo)
+```
+### Exportng Target
+project 可以被设置生成必要的信息，以使他它能够被其他的项目所使用. 首先 build & install library.
+```
+add_library(MahtFunction STATIC MathFunctions.cxx)
+
+target_include_directories(MathFunctions PUBLIC
+                            "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
+                            "$<INSTALL_NTERFACE:${INSTALL_INCLUDE_DIR}>")
+```
+告知 CMake 在 build 和 install 时使用不同的 include 目录. 这是因为如果不这样做, 在创建 export information 时, 将输出一个特定于当前 build 目录的无效路径导致其他 project 无法使用.
+
+install(TARGET) 用来安装 target, 指定其 property, 并绑定 export.
+```
+install(TARGET MathFunctions
+        EXPORT MathFunctionsTargets
+        LIBRARY DESTINATION ${INSTALL_LIB}
+        ARCHIVE DESTINATION ${INSTALL_LIB}
+        RUNTIME DESTINATION ${INSTALL_BIN}
+        INCLUDES DESTINATION ${INSTALL_INCLUDE_DIR}
+        )
+```
+安装 include files
+```
+install(FILES MathFunctions.h DESTINATION ${INSTALL_INCLUDE_DIR})
+```
+安装 export information, 实际上是生成 .camke 文件到指定目录
+```
+install(EXPORT MathFunctionsTargets 
+        FILE MathFunctionsTargets.cmake 
+        NAMESPACE MathFunctions:: 
+        DESTINATION ${INSTALL_LIB}/cmake/MathFunctions) 
+```
+MathFunctionsTargets.cmake 中的内容和 importing library 中手写的 IMPORT 类似, 但是有了 .cmake 后, 使用 include(.cmake) 命令即可引用 library.
+```
+include(${PREFIX}/${INSTALL_LIB}/cmake/Mathfunctions/MathfunctionsTargets.cmake)
+...
+target_link_libraries(myexe PRIVATE MathFunctions::Mathfunctions)
+```
+
+多个 target 可以绑定到一个 export name
+```
+# A/CMakeLists.txt
+add_executable(myexe src1.c)
+install(TARGETS myexe DESTINATION lib/myproj
+        EXPORT myproj-targets)
+
+# B/CMakeLists.txt
+add_library(foo STATIC foo1.c)
+install(TARGETS foo DESTINATION lib EXPORTS myproj-targets)
+
+# Top CMakeLists.txt
+add_subdirectory (A)
+add_subdirectory (B)
+install(EXPORT myproj-targets DESTINATION lib/myproj)
+```
+
+
 
 # C++ language
 ## 智能指针
