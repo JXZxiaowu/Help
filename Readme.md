@@ -279,7 +279,7 @@ target_include_directories(Tutorial PUBLIC
 ### 使用 interface library 设置 C++ standard
 
 ### install
-有时我们不仅需要 build 一个可执行 project, 也需要 installable. 使用 CMake install() 命令来表明安装规则.
+有时我们不仅需要 build 一个可执行 project, 也需要 installable. 使用 CMake install() 命令来表明安装规则. install 用于将 include files, library 拷贝到指定的位置.
 
 1. install MathFunctions library and the headers file to lib and include 目录分别地.
     ```
@@ -299,13 +299,75 @@ target_include_directories(Tutorial PUBLIC
     install(TARGETS Tutorial DESTINATION bin)
     install(FILES "${PROJECT_BINARY_DIR}/TutorialConfig.h" DESTINATION include)
     ```
-
-
-
-
-
-
-
+    ### try compile
+    测试一些功能/函数是否存在，并以此执行不同的动作.
+    1. 我们将会使用 CheckCXXSourceCompiles 中的功能，因此
+        ```
+        # MathFunctions/CmakeList.txt
+        include(CheckCXXSourceCompiles)
+        ```
+    2. Test of available functions of log and exp using check_cxx_compiles_source
+        ```
+        # MathFunctions/CmakeList.txt
+        check_cxx_compiles_source(
+            "
+            #inlcude <cmath>
+            int main(){
+                std::log(1.0);
+                return 0;
+            }
+            " HAVE_LOG
+        )
+        check_cxx_compiles_source(
+            "
+            #include <cmath>
+            int main(){
+                std::exp(1.0);
+                return 0;
+            }
+            " HAVE_EXP
+        )
+        ```
+> **check_cxx_compiles_source**: 该函数会尝试编译指定代码以测试特定的功能是否在平台存在.
+3. 指定 compile definition
+    ```
+    ...
+    if (HAVE_LOG AND HAVE_EXP)
+        target_compile_definition(SqrtLibrary PRIVETE "HAVE_LOG" "HAVE_EXP")
+    endif()
+    ...
+    ```
+4. source fuke 根据 HAVE_LOG HAVE_EXP 执行不同的代码
+    ```
+    # MathFunctions/mysqrt.cxx
+    #if defined(HAVE_LOG) && defined(HAVE_EXP)
+        double result = std::exp(std::log(x) * 0.5);
+        std::cout<< "..." <<std::endl;
+    #else
+        double result = x;
+    ...
+    ```
+### custom command & generated file
+MathFunctions/MakeTable.cxx 被用来生成 Table.h 以供 MathFUnctions/mysqrt.cxx 使用. 当 build project 时, 首先 build MakeTable executable 并执行 MakeTable 生成 Table.h, 之后编译 mysqrt.cxx 生成 MakeFunction library.
+1. 创建 MathFunctions/MakeTable.cmake 并加入指令
+    ```
+    # MathFunctions/MakeTable.cmake
+    add_executable(MakeTable MakeTable.cxx)
+    add_custom_command(
+        OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/Table.h
+        COMMOND MakeTable ${CMAKE_CURRENT_BINARY_DIR}/Table.h
+        DEPENDS MakeTable
+    )
+    ```
+2. 编辑 MathFunctions/CmakeList.txt
+    ```
+    add_library(SqrtLibrary STATIC mysqrt.cxx ${CAMKE_CURRENT_BINARY_DIR}/Table.h)
+    target_inlcude_directories(SqrtLibrary PRIVATE ${CAME_CURRENT_BINARY_DIR})
+    ```
+4. include MakeTable.cmake at the top of the MathFunctions/CmakeList
+    ```
+    include(MakeTable.cmake)
+    ```
 
 # C++ language
 ## 智能指针
