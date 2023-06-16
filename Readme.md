@@ -418,34 +418,39 @@ target_link_libraries()myexe PRIVETE foo)
 ### Exportng Target
 project 可以被设置生成必要的信息，以使他它能够被其他的项目所使用. 首先 build & install library.
 ```
+#inlcude(GNUInstallDirs)
 add_library(MahtFunction STATIC MathFunctions.cxx)
 
 target_include_directories(MathFunctions PUBLIC
                             "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}>"
-                            "$<INSTALL_NTERFACE:${INSTALL_INCLUDE_DIR}>")
+                            "$<INSTALL_NTERFACE:${CAMKE_INSTALL_INCLUDEDIR}>")
 ```
-告知 CMake 在 build 和 install 时使用不同的 include 目录. 这是因为如果不这样做, 在创建 export information 时, 将输出一个特定于当前 build 目录的无效路径导致其他 project 无法使用.
+> **CAMKE_INSTALL_INCLUDEDIR**: GNUInstallDirs 定义的变量, 通常为一个相对于 install prefix 的路径. 
+
+> 告知 CMake 在 build 和 install 时使用不同的 include 目录. 这是因为如果不这样做, 在创建 export information 时将输出一个特定于当前 build 目录的无效路径导致其他 project 无法使用.
 
 install(TARGET) 用来安装 target, 指定其 property, 并绑定 export.
 ```
 install(TARGET MathFunctions
         EXPORT MathFunctionsTargets
-        LIBRARY DESTINATION ${INSTALL_LIB}
-        ARCHIVE DESTINATION ${INSTALL_LIB}
-        RUNTIME DESTINATION ${INSTALL_BIN}
-        INCLUDES DESTINATION ${INSTALL_INCLUDE_DIR}
+        LIBRARY DESTINATION ${CAMKE_INSTALL_LIBDIR}
+        ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+        INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
         )
 ```
 安装 include files
 ```
-install(FILES MathFunctions.h DESTINATION ${INSTALL_INCLUDE_DIR})
+install(FILES MathFunctions.h DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 ```
+> 在 install 的 DESTINATION 属性中不能使用与 build 有关的路径, 如 PROJECT_SOURCE_DIR, PROJECT_BINARY_DIR.
+
 安装 export information, 实际上是生成 .camke 文件到指定目录
 ```
 install(EXPORT MathFunctionsTargets 
         FILE MathFunctionsTargets.cmake 
         NAMESPACE MathFunctions:: 
-        DESTINATION ${INSTALL_LIB}/cmake/MathFunctions) 
+        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/MathFunctions) 
 ```
 MathFunctionsTargets.cmake 中的内容和 importing library 中手写的 IMPORT 类似, 但是有了 .cmake 后, 使用 include(.cmake) 命令即可引用 library.
 ```
@@ -453,6 +458,7 @@ include(${PREFIX}/${INSTALL_LIB}/cmake/Mathfunctions/MathfunctionsTargets.cmake)
 ...
 target_link_libraries(myexe PRIVATE MathFunctions::Mathfunctions)
 ```
+MathfunctionsTargets.cmake 文件负责 add_library 并给出库的位置及其他属性.
 
 多个 target 可以绑定到一个 export name
 ```
@@ -470,6 +476,42 @@ add_subdirectory (A)
 add_subdirectory (B)
 install(EXPORT myproj-targets DESTINATION lib/myproj)
 ```
+### Creating Package
+当有了 export information 后, 我们通过 inlcude(.cmake file) 即可引用 library. 通过创建 Package 可以通过 find_package() 命令找到 project.
+
+> **CMAKE_CURRENT_LIST_DIR** 当 CMake 处理你项目中的列表文件时，这个变量将始终被设置为当前正在处理的列表文件所在的目录.
+1. 创建 package configuration file
+
+    1. 书写 PackageNameConfig.cmake.in(用来生成PackageNameConfig.cmake)
+        ```
+        @PACKAGE_INIT@
+
+        include("${CMAKE_CURRENT_LIST_DIR}/MathFunctionsTargets.cmake")
+
+        check_required_components(MathFunctions)
+        ```
+    2. 一般境况下使用 configure_files() 从 .in file 生成对应的文件, 但是处理 package configuration file 时使用 configure_package_config_file()
+    ```
+    # CMakeList.txt
+    configure_package_config_file(${CMAKE_CURRENT_SOURCE_DIR}/PackageNameConfig.cmake.in
+                                "${CMAKE_CURRENT_BINARY_DIR}/MathFunctionsConfig.cmake"
+                                INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/PackageName)
+    ```
+    3. install(FILES)
+    ```
+    #CMakeList.txt
+    install(FILES
+            "${CMAKE_CURRENT_BINARY_DIR}/PackageNameConfig.cmake"
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/PackageName
+            )
+    ```
+如果某一个 project 需要使用我们的 PackageName, 那么它仅需要
+```
+find_package(PackageName REQUIRED)
+...
+target_link_libraries(myexe PUBLIC PackageName)
+```
+2. 创建 package version file
 
 
 
