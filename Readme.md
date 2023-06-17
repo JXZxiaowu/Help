@@ -512,7 +512,47 @@ find_package(PackageName REQUIRED)
 target_link_libraries(myexe PUBLIC PackageName)
 ```
 2. 创建 package version file
+当 find_package() 被调用时，CMake 读取该文件以确定是否与所需的版本兼容.
+```
+set(version 3.1.4)
+# generate the version file for the config file
 
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/MathFunctionsConfigVersion.cmake"
+  VERSION "${version}"
+  COMPATIBILITY AnyNewerVersion
+)
+```
+COMPATIBILITY 为 AnyNewerVersion 意味着所安装的包的版本如果比要求的版本新或完全相同，将被视为兼容的.
+### Exporting Targets from the build tree
+通常情况下，一个 project 在被外部的 project 使用前经过了 build & install. 但是在一些情况下, 我们希望直至从 build tree 中 export targets. 然后这些 targets 能够在不经过 install 的情况下被其他 project 使用. 使用 export() 命令而不是 install(EXPORT) 来生成 export information.
+```
+#CMakeList.txt
+export(EXPORT MathFunctions
+        FILE “${CMAKE_CURRENT_BINARY_DIR/cmake/MathFunctionsTargets.cmake}”
+        NAMESPACE MathFunctions::)
+```
+### Relocatable Packages
+由 install(EXPORT) 创建的 package 是可重定位的. include directories 应该指定为相对于 CMAKE_INSTALL_PREFIX 的路径而且不能显示包含 CMAKE_INSTALL_PREFIX
+```
+target_include_directories(tgt INTERFACE $<INSTALL_INTERFACE:include>)
+
+# wrong
+target_include_directories(tgt INTERFACE $<INSTALL_INTERFACE:${CMAKE_INSTALL_PREFIX}/include>)
+
+# OK, 使用 generator expression 作为占位符, 仅提示作用
+target_include_directories(tgt INTERFACE $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>)
+```
+### 使用 package configuration file
+```
+# CMakeList.txt
+find_package(PackageName)
+...
+target_link_libraries(myexe PRIVATE packageName)
+```
+并且需要设置 CMAKE_PREFIX_PATH 变量, 有两种方式, path_to_install 只需到 lib 的上层即可.
+1. set(CMAKE_PREFIX_PATH "path_to_install")
+2. cmake -DCMAKE_PREFIX_PATH="path_to_install"
 
 
 # C++ language
