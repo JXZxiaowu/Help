@@ -753,6 +753,8 @@ setup(
     ],
 )
 ```
+> **name in setup()**: name 是安装包的名字，isntall 的 package 的名字依然是目录(Package)的名字.
+
 最后将代码组织成这种形式
 ```
 mypackage
@@ -771,34 +773,35 @@ python setup.py build
 ```
 最后，将这个包安装到 Python 环境中
 ```
-python install .
-# or
 pip isntall dist/PackageName.whl
+# or
+python setup.py install
 ```
-
-
 ## 发现 Package
 ### 指定 Package
 最简单的情况是
 ```
 setup(
     # ...
-    packages = ["mypkg", "mypkg.subpkg1", "mypkg.subpkg2"]  # install .whl 后 import mypkg/mypkg.subpkg
+    packages = ["mypkg", "mypkg.subpkg1", "mypkg.subpkg"]
 )
 ```
-这里注意如果我们仅有 mypkg, 那么 mypkg.subpkg 是不会被 build 的。
-如果 mypkg 不在当前目录的根目录下，那么可以使用 package_dir 配置。
+> **Note**: 在 setup() 函数中，packages 参数用于指定要构建的 Python 包。当你指定顶层 package 时，例如 packages=['top_package']，只有该顶层 package top_package 及其直接子模块 (.py) 会被构建。
+如果 mypkg 不在当前目录的根目录下，那么可以使用 package_dir 配置。如果 top_package 包中存在子 package，例如 top_package.sub_package，它不会被包含在构建中，除非你在 packages 参数中明确指定了该子 package，例如 packages=['top_package', 'top_package.sub_package']。
+
+如果 mypkg 不在当前目录的根目录下，那么可以使用 package_dir 配置, 如下
 ```
 setup(
-    # ...
+    packages = ["mypkg", "mypkg.subpkg1", "mypkg.subpkg"]
     package_dir = {"": "src"}   # build 的对象将包含 src/mypkg, src/mypkg/subpkg
+    # 或者为每个 package 单独指定
     # package_dir = {
     #     "mypkg": "src",
     #     "mypkg/subpkg": "src",
     # },
 )
 ```
-默认情况下 setup.py 路径下的所有包都会被包含。
+手动的配置 packages 参数非常繁琐，所以 setuptools 提供了自动查找 packages 的方法。
 ### find_package
 find_packages() takes a source directory and two lists of package name patterns to exclude and include, and then returns a list of str representing the packages it could find.
 ```
@@ -813,7 +816,7 @@ mypkg
     │   └── __init__.py
     └── pkg
         └── namespace
-            └── __init__.py
+            └── module.py
 ```
 ```
 form setuptools import find_packages
@@ -829,7 +832,9 @@ setup(
 )
 ```
 find_packages 返回 ['pkg1', 'pkg2', 'pkg']，所以必须使用 package_dir。如果是子模块，那么字符串为 mypkg.subpkg.
-- 问题是在 src 下的没有 __init__.py 文件的目录不会被考虑（查找），这需要使用 find_namespace_packages 解决.
+> **Note:** 如果在 find_packages() 中使用了 where 参数, 那么一定是使用 package_dir.
+
+> **Note:** find_packages() 函数会递归地查找指定目录下的所有包和子包。它会扫描目录结构，寻找包含 __init__.py 文件的目录，并将其作为包; 其不会查找没有 __init__.py 文件的目录，这需要使用find_namespace_packages 解决.
 ### find_namespace_packages
 ```
 foo
@@ -849,6 +854,21 @@ setup(
 )
 ```
 安装 .whl 后，import timmins.foo 使用.
+### pkg_resource 风格的 namespace package
+```
+foo
+├── pyproject.toml  # AND/OR setup.cfg, setup.py
+└── src
+    └── timmins
+        ├── __init__.py
+        └── foo
+            └── __init__.py
+```
+在 timins 的 __init__.py 中加入以下代码便能将 timnins 声明为 namespace package.
+```
+__import__("pkg_resources").declare_namespace(__name__)
+```
+>**__import__()**: 它提供了一种以字符串形式指定模块名称的方式来进行导入，从而在运行时动态加载模块。
 ### 检查 build 是否正确
 在 build 你的文件之后，使用
 ```
