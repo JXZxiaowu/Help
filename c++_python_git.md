@@ -923,6 +923,7 @@ setuptools can buld C/C++ extension modules. setup() 函数中的参数 ext_modu
 from setuptools import setup, Extension
 
 setup(
+    ...
     ext_modules = [
         Extension(
             name="mylib.foo",   # as it would be imported
@@ -932,3 +933,12 @@ setup(
     ]
 )
 ```
+### Extension API reference
+`class setuptools.Extension(name, sources, *args, **kw)`
+- name: the full name of the extension, including any packages
+- sources: source files 的列表, 相对路径是指相对于 distribution root 即 setup.py 所在的路径
+- include_dirs: header files
+- define _macros: list(tuple(str, str)) 需要定义的宏
+- library_dirs (list[str]): 在链接阶段寻找 library 的路径
+- libraries: 需要链接的库的名字
+
