@@ -4,6 +4,36 @@
 1. Strieded layout / 步幅布局：Tesnor.stride() 定义了在内存中访问元素所需移动的字节数，通过改变 stride 属性，可以改变 Tensor 的视图而不移动或复制底层数据
 2. Contiguous layout / 连续布局: 张量的数据在内存中按照连续的方式进行存储
 3. Channels last layout / 末尾通道布局: 在末尾通道布局中，通道维度是最后一个维度，可以提高部分操作的性能
+# 自动求导机制
+使用 Function 类构成图来完成自动求导的. 每次循环都会从头创建 graph, 这也正是 torch 能使用控制语句的原因.
+
+## Save tensors for backward
+通过在 Function 类的 forward() 函数中调用 save_for_backward() 函数以为 backward pass 存储 Tensor.
+## 局部禁用梯度计算
+三种方法: 设置 requires_grad, no-grad mode, and inference mode
+### requires_grad
+在前向传播的过程中，只有当一个计算的至少一个输入 Tensor reqquire grad，该计算才被记录后向传播的 graph 中. 在 leaf tensor 中, 只有 requires_grad = True 的 tensor 才会将梯度累加到 grad 属性中.
+
+虽然所有的 Tensor 都有 requires_grad 属性，但是其只对叶子 Tensor 有意义. 在代码中，如果将非叶子节点 Tensor.requires_grad = False, 叶子节点 Tensor 的 grad 依然能够被正确的计算.
+
+如果想 freeze part of model, 将对应的参数应用 .requires_grad_(False). 另外 model.requires_grad_() 将会被应用到 model 的所有 parameters.
+### Grad Mode (Default)
+默认模式，在该模式下，参数是否更新梯度完全由 requires_grad 决定
+### No-grad Mode
+```
+with torch.no-grad():
+    # code
+...
+```
+在 no-grad mode 中的计算不会被 backward graph 记录，即使 inputs.requires_grad=True. 该模式使得我们在禁用某一块代码或函数的梯度计算很方便，我们可以不用短暂地设置 Tensor.requires_grad=False and then back to True.
+### inference mode
+inference mode 是 no-grad mode 的一个极端模式，它允许 Torch 更快地进行计算. 缺点是在 inference mode 下创建地 Tensor，在 inference mode 结束后如果被记录到 backward graph 中会触发错误.
+
+如果该模式无法正确运行代码，那么退回到 no-grad mode! :D
+### evaluation mode
+**Evaluation mode 并不是用来禁用梯度计算的机制**. 无论是训练模式还是 evaluation 模型，Torch 都会构建 backward graph 用以计算梯度. evaluation 模式主要是为了影响某些层 (训练阶段和评估阶段行为不一致地层) 的行为.
+## 并发的不确定性
+>If you are calling backward() from multiple threads concurrently and have shared inputs (i.e. Hogwild CPU training), then non-determinism should be expected.
 # 自动求导包 TORCH.AUTOGRAD
 ## 叶子和非叶子节点
 在 Python 中，可以通过检察 Tensor.grand_fn 区分叶子节点和非叶子节点
@@ -131,4 +161,28 @@ with torch.autograd.profiler.profile(
 # 在块外
 print(prof)
 ```
+## 异常检测 / Anomaly detection
+```
+CLASS torch.autograd.detect_anomaly(check_nan=True)
+```
+用于异常检测的上下文管理器.
+- 将前向和后向传播过程加入到该类的上下文管理块内，该类将会回溯发生错误的 backward 对应的 forward;
+- 如果 check_nan = True, 当 backward 计算产生 nan 值时会触发错误.
 
+因为会拖累程序的运行，下面的版本将允许我们控制是否开启检测
+```
+CLASS torch.autograd.set_detect_anomaly(mode, check_nan=True)
+# mode (bool) - 是否开启检测
+```
+## 梯度 graph
+非叶子 Tensor 的 grad_fn 是 torch.autograd.graph.node 的 holder，该类支持我们检查 backward pass.
+
+```
+graph.node.name()  # 返回名字，操作的名字
+graph.node.metadata() # 返回元数据, 可以理解为 forward pass 的输入
+```
+对非叶子 Tensor, 我们也能注册 hook.
+```
+graph.node.register_hook()
+```
+The hook will be called every time a gradient with respect to the Node is computed, hook 的形式是 `hook(grad_inputs: Tuple[Tensor], grad_outputs: Tuple[Tensor]) -> Tuple[Tensor] or None`, 与 Tensor.register_hook() 相同的是我们应该通过返回一个 Tensor 来代替 grad_outputs.
